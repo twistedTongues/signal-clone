@@ -90,6 +90,7 @@ const RegisterScreen = ({ navigation }: Props) => {
         />
       </View>
       <Button
+        disabled={!name || !password || !email}
         containerStyle={styles.button}
         title="Register"
         onPress={register}

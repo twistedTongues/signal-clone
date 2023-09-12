@@ -1,5 +1,8 @@
 import { StyleSheet } from "react-native";
 import { Avatar, ListItem } from "@rneui/themed";
+import { useEffect, useState } from "react";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "../firebase";
 
 type Props = {
   id: string;
@@ -7,14 +10,41 @@ type Props = {
   enterChat: (id: string, chatName: string) => void;
 };
 
+export type chatMessage = {
+  displayName: string;
+  email: string;
+  message: string;
+  photoURL: string;
+  timestamp: string;
+};
+
 const CustomListItem = ({ id, chatName, enterChat }: Props) => {
+  const [chatMessages, setChatMessages] = useState<chatMessage[]>([]);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, `chats/${id}/messages`),
+      orderBy("timestamp", "desc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (querySnapshot) =>
+        setChatMessages(querySnapshot.docs.map((detail) => (detail.data()))),
+    );
+    return unsub;
+  }, []);
+
   return (
-    <ListItem bottomDivider onPress={() => enterChat(id, chatName)}>
+    <ListItem
+      key={id}
+      bottomDivider
+      onPress={() => enterChat(id, chatName)}
+    >
       <Avatar
         rounded
         source={{
-          uri:
-            "https://cencup.com/wp-content/uploads/2019/07/avatar-placeholder.png",
+          uri: chatMessages?.[0]?.photoURL ||
+            "https://st3.depositphotos.com/9998432/13335/v/450/depositphotos_133351928-stock-illustration-default-placeholder-man-and-woman.jpg",
         }}
       />
       <ListItem.Content>
@@ -22,17 +52,7 @@ const CustomListItem = ({ id, chatName, enterChat }: Props) => {
           {chatName}
         </ListItem.Title>
         <ListItem.Subtitle numberOfLines={1} ellipsizeMode="tail">
-          Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit
-          enim labore culpa sint ad nisi Lorem pariatur mollit ex esse
-          exercitation amet. Nisi anim cupidatat excepteur officia.
-          Reprehenderit nostrud nostrud ipsum Lorem est aliquip amet voluptate
-          voluptate dolor minim nulla est proident. Nostrud officia pariatur ut
-          officia. Sit irure elit esse ea nulla sunt ex occaecat reprehenderit
-          commodo officia dolor Lorem duis laboris cupidatat officia voluptate.
-          Culpa proident adipisicing id nulla nisi laboris ex in Lorem sunt duis
-          officia eiusmod. Aliqua reprehenderit commodo ex non excepteur duis
-          sunt velit enim. Voluptate laboris sint cupidatat ullamco ut ea
-          consectetur et est culpa et culpa duis.
+          {chatMessages?.[0]?.displayName}: {chatMessages?.[0]?.message}
         </ListItem.Subtitle>
       </ListItem.Content>
     </ListItem>

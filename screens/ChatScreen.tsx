@@ -11,19 +11,18 @@ import {
   View,
 } from "react-native";
 import { NavigationProp } from "./RegisterScreen";
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Avatar } from "@rneui/base";
-import { AntDesign, FontAwesome, Ionicons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import {
   addDoc,
   collection,
-  doc,
-  getDocs,
+  onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
-  setDoc,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -40,8 +39,22 @@ type Props = {
   };
 };
 
+type chatMessageData = {
+  data: {
+    displayName: string;
+    email: string;
+    message: string;
+    photoURL: string;
+    timestamp: string;
+  };
+  id: string;
+};
+
 const ChatScreen = ({ navigation, route }: Props) => {
   const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<chatMessageData[]>([]);
+  const scrollViewRef = useRef(null);
+
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Chat",
@@ -52,7 +65,7 @@ const ChatScreen = ({ navigation, route }: Props) => {
           <Avatar
             rounded
             source={{
-              uri:
+              uri: messages[0]?.data?.photoURL ||
                 "https://st3.depositphotos.com/9998432/13335/v/450/depositphotos_133351928-stock-illustration-default-placeholder-man-and-woman.jpg",
             }}
           />
@@ -79,41 +92,41 @@ const ChatScreen = ({ navigation, route }: Props) => {
         </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, messages]);
 
   const sendMessage = async () => {
     Keyboard.dismiss();
-    // try {
-    //   const docRef = await setDoc(doc(db, "chats", route.params.id), {
-    //     chatName: "Bla",
-    //   });
-    // } catch (error) {
-    //   console.error(error);
-    // }
-
-    // const q = query(collection(db, "chats"));
-    // const querySnapshot = await getDocs(q);
-    // const queryData = querySnapshot.docs.map((detail) => ({
-    //   ...detail.data(),
-    //   id: detail.id,
-    // }));
-    // console.log(queryData);
-
-    // queryData.map(async (v) => {
-    await addDoc(collection(db, `chats/${route.params.id}/messages`), {
-      timestamp: serverTimestamp(),
-      message: input,
-      displayName: auth.currentUser?.displayName,
-      email: auth.currentUser?.email,
-      photoURL: auth.currentUser?.photoURL,
-    });
-    // });
+    try {
+      await addDoc(collection(db, `chats/${route.params.id}/messages`), {
+        timestamp: serverTimestamp(),
+        message: input,
+        displayName: auth.currentUser?.displayName,
+        email: auth.currentUser?.email,
+        photoURL: auth.currentUser?.photoURL,
+      });
+    } catch (error) {
+      console.error(error);
+    }
 
     setInput("");
   };
 
   useLayoutEffect(() => {
     // TODO
+    const q = query(
+      collection(db, `chats/${route.params.id}/messages`),
+      orderBy("timestamp", "asc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (querySnapshot) => {
+        setMessages(querySnapshot.docs.map((detail) => ({
+          data: detail.data(),
+          id: detail.id,
+        })));
+      },
+    );
+    return unsub;
   }, [route]);
 
   return (
@@ -125,7 +138,52 @@ const ChatScreen = ({ navigation, route }: Props) => {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <>
-            <ScrollView>
+            <ScrollView
+              ref={scrollViewRef}
+              onContentSizeChange={() =>
+                scrollViewRef.current?.scrollToEnd({ animated: true })}
+              contentContainerStyle={{
+                paddingTop: 15,
+              }}
+            >
+              {messages.map(({ id, data }) => (
+                data.email === auth.currentUser?.email
+                  ? (
+                    <View key={id} style={styles.receiver}>
+                      <Avatar
+                        containerStyle={{
+                          position: "absolute",
+                          bottom: -15,
+                          right: -5,
+                        }}
+                        rounded
+                        size={30}
+                        source={{
+                          uri: data.photoURL,
+                        }}
+                      />
+                      <Text style={styles.receiverText}>{data.message}</Text>
+                    </View>
+                  )
+                  : (
+                    <View key={id} style={styles.sender}>
+                      <Avatar
+                        containerStyle={{
+                          position: "absolute",
+                          bottom: -15,
+                          right: -5,
+                        }}
+                        rounded
+                        size={30}
+                        source={{
+                          uri: data.photoURL,
+                        }}
+                      />
+                      <Text style={styles.senderText}>{data.message}</Text>
+                      <Text style={styles.senderName}>{data.displayName}</Text>
+                    </View>
+                  )
+              ))}
             </ScrollView>
             <View style={styles.footer}>
               <TextInput
@@ -152,6 +210,42 @@ export default ChatScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  receiver: {
+    padding: 15,
+    backgroundColor: "#ECECEC",
+    alignSelf: "flex-end",
+    borderRadius: 20,
+    marginRight: 15,
+    marginBottom: 20,
+    maxWidth: "80%",
+    position: "relative",
+  },
+  sender: {
+    padding: 15,
+    backgroundColor: "#2B68E6",
+    alignSelf: "flex-start",
+    borderRadius: 20,
+    margin: 15,
+    maxWidth: "80%",
+    position: "relative",
+  },
+  senderName: {
+    left: 10,
+    paddingRight: 10,
+    fontSize: 10,
+    color: "white",
+  },
+  senderText: {
+    color: "white",
+    fontWeight: "500",
+    marginLeft: 10,
+    marginBottom: 15,
+  },
+  receiverText: {
+    color: "black",
+    fontWeight: "500",
+    marginLeft: 10,
   },
   footer: {
     flexDirection: "row",

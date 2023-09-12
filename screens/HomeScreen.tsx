@@ -6,7 +6,7 @@ import { Avatar } from "@rneui/base";
 import { auth, db } from "../firebase";
 import { signOut } from "firebase/auth";
 import { AntDesign, SimpleLineIcons } from "@expo/vector-icons";
-import { collection, DocumentData, getDocs } from "firebase/firestore";
+import { collection, DocumentData, onSnapshot } from "firebase/firestore";
 import { RootStackParamList } from "../App";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -37,21 +37,17 @@ const HomeScreen = ({ navigation }: Props) => {
   };
 
   useEffect(() => {
-    (async () => {
-      const querySnapshot = await getDocs(collection(db, "chats"));
-      // const r = querySnapshot.docs.map((doc) => ({
-      //   id: doc.id,
-      //   data: doc.data(),
-      // }));
-      // setChats(r);
-      setChats(
-        querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          data: doc.data(),
-        })),
-      );
-    })();
-  }, [chats]);
+    const unsub = onSnapshot(
+      collection(db, "chats"),
+      (querySnapshot) => {
+        setChats(querySnapshot.docs.map((detail) => ({
+          data: detail.data(),
+          id: detail.id,
+        })));
+      },
+    );
+    return unsub;
+  }, []);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -96,7 +92,6 @@ const HomeScreen = ({ navigation }: Props) => {
     });
   }, [navigation]);
 
-  console.log(chats[0]);
   const enterChat = (id: string, chatName: string) => {
     navigation.navigate("Chat", {
       id,

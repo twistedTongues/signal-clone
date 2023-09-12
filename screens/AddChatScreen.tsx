@@ -1,10 +1,12 @@
 import { Input } from "@rneui/base";
 import { Button, Icon } from "@rneui/themed";
 import { useLayoutEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { db } from "../firebase";
 import { addDoc, collection } from "firebase/firestore";
 import { NavigationProp } from "./LoginScreen";
+import { StatusBar } from "expo-status-bar";
 
 type Props = {
   navigation: NavigationProp;
@@ -30,7 +32,8 @@ const AddChatScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
       <Input
         placeholder="Enter a chat name"
         value={input}
@@ -46,8 +49,13 @@ const AddChatScreen = ({ navigation }: Props) => {
           />
         }
       />
-      <Button radius={5} onPress={createChat} title="Create New Chat" />
-    </View>
+      <Button
+        disabled={!input}
+        radius={5}
+        onPress={createChat}
+        title="Create New Chat"
+      />
+    </SafeAreaView>
   );
 };
 
